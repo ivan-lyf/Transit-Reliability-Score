@@ -1,0 +1,34 @@
+{
+  "name": "transit-reliability-score",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Transit Reliability Score MVP for Metro Vancouver (TransLink)",
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "dev:api": "pnpm --filter @transit/api dev",
+    "dev:mobile": "pnpm --filter @transit/mobile start",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix"
+    ],
+    "*.py": [
+      "ruff check --fix",
+      "ruff format"
+    ]
+  }
+}

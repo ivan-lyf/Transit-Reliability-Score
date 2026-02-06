@@ -1,0 +1,14 @@
+{
+  "name": "@transit/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn transit_api.main:app --reload --host 0.0.0.0 --port 8000",
+    "start": "uvicorn transit_api.main:app --host 0.0.0.0 --port 8000",
+    "lint": "ruff check src tests && ruff format --check src tests",
+    "lint:fix": "ruff check --fix src tests && ruff format src tests",
+    "typecheck": "mypy src",
+    "test": "pytest",
+    "test:cov": "pytest --cov=transit_api --cov-report=term-missing"
+  }
+}
