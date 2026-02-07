@@ -21,6 +21,7 @@ class TestModelsMetadata:
             "rt_vehicle_positions",
             "rt_alerts",
             "rt_ingest_meta",
+            "matched_arrivals",
             "score_agg",
             "users",
             "gtfs_import_log",

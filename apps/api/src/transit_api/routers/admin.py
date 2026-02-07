@@ -1,4 +1,4 @@
-"""Admin routes for GTFS import operations."""
+"""Admin routes for GTFS import and matching operations."""
 
 from typing import Any, Dict, List, Literal, Optional
 
@@ -11,6 +11,7 @@ from transit_api.services.gtfs_static.fetcher import FetchError, InvalidZipError
 from transit_api.services.gtfs_static.importer import GtfsImporter
 from transit_api.services.gtfs_static.parser import MissingColumnError
 from transit_api.services.gtfs_static.reader import MissingRequiredFileError
+from transit_api.services.matching.engine import MatchingEngine
 
 logger = get_logger(__name__)
 
@@ -121,5 +122,81 @@ async def import_static_gtfs(body: StaticGtfsImportRequest) -> Dict[str, Any]:
     # If strict mode produced errors, return 400
     if report.errors:
         raise HTTPException(status_code=400, detail=report.to_dict())
+
+    return report.to_dict()
+
+
+# --- Stage 5: Matching ---
+
+
+class MatchingRunRequest(BaseModel):
+    """Request body for matching run."""
+
+    window_minutes: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=1440,
+        description="How far back (minutes) to scan RT updates. Defaults to MATCH_WINDOW_MINUTES.",
+    )
+    max_candidates: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Max schedule candidates per RT update. Defaults to MATCH_MAX_CANDIDATES.",
+    )
+    batch_size: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=10000,
+        description="Batch size for DB inserts. Defaults to MATCH_BATCH_SIZE.",
+    )
+    strict_mode: Optional[bool] = Field(
+        default=None,
+        description="Reject ambiguous matches. Defaults to MATCH_STRICT_MODE.",
+    )
+
+
+class MatchingRunResponse(BaseModel):
+    """Response body for matching run."""
+
+    run_id: str
+    started_at: str
+    ended_at: str
+    duration_ms: int
+    scanned_count: int
+    matched_count: int
+    unmatched_count: int
+    ambiguous_count: int
+    deduped_count: int
+    error_count: int
+
+
+@router.post(
+    "/matching/run",
+    response_model=MatchingRunResponse,
+    summary="Run schedule-to-observation matching",
+    description=(
+        "Match GTFS-RT trip updates to static scheduled stop times "
+        "and persist matched arrivals with delay computation. "
+        "Idempotent — reruns update existing matches."
+    ),
+)
+async def run_matching(body: MatchingRunRequest) -> Dict[str, Any]:
+    """Execute a schedule-to-observation matching run."""
+    engine = MatchingEngine(
+        window_minutes=body.window_minutes,
+        max_candidates=body.max_candidates,
+        batch_size=body.batch_size,
+        strict_mode=body.strict_mode,
+    )
+
+    try:
+        report = await engine.run()
+    except Exception as exc:
+        logger.error("Matching run failed", exc_info=exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Matching run failed: {type(exc).__name__}: {exc}",
+        ) from exc
 
     return report.to_dict()
