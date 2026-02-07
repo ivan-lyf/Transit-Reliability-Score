@@ -26,7 +26,7 @@ if not RUN_INTEGRATION or not DATABASE_URL:
     )
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def engine() -> AsyncEngine:
     """Create database engine and ensure schema is present."""
     engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)

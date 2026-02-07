@@ -19,7 +19,9 @@ async def test_health_endpoint_returns_200(client: AsyncClient) -> None:
     assert "timestamp" in data
     assert "checks" in data
     assert isinstance(data["checks"]["database"], bool)
-    assert isinstance(data["checks"]["gtfsRt"], bool)
+    assert isinstance(data["checks"]["gtfsRt"], dict)
+    assert "workerRunning" in data["checks"]["gtfsRt"]
+    assert "pollCount" in data["checks"]["gtfsRt"]
     assert "issues" in data
     assert isinstance(data["issues"], list)
 

@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 from typing import Literal, Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,9 +38,22 @@ class Settings(BaseSettings):
     translink_api_key: str = Field(default="")
 
     # GTFS Feed URLs (with configurable base)
-    gtfs_trip_updates_url: str = "https://gtfsapi.translink.ca/v3/gtfsrealtime"
-    gtfs_vehicle_positions_url: str = "https://gtfsapi.translink.ca/v3/gtfsposition"
-    gtfs_service_alerts_url: str = "https://gtfsapi.translink.ca/v3/gtfsalerts"
+    gtfs_trip_updates_url: str = Field(
+        default="https://gtfsapi.translink.ca/v3/gtfsrealtime",
+        validation_alias=AliasChoices("TRIP_UPDATES_URL", "GTFS_TRIP_UPDATES_URL"),
+    )
+    gtfs_vehicle_positions_url: str = Field(
+        default="https://gtfsapi.translink.ca/v3/gtfsposition",
+        validation_alias=AliasChoices(
+            "VEHICLE_POSITIONS_URL", "GTFS_VEHICLE_POSITIONS_URL"
+        ),
+    )
+    gtfs_service_alerts_url: str = Field(
+        default="https://gtfsapi.translink.ca/v3/gtfsalerts",
+        validation_alias=AliasChoices(
+            "SERVICE_ALERTS_URL", "GTFS_SERVICE_ALERTS_URL"
+        ),
+    )
     gtfs_static_url: str = Field(
         default="https://gtfs-static.translink.ca",
         validation_alias=AliasChoices("STATIC_GTFS_URL", "GTFS_STATIC_URL"),
@@ -57,9 +71,14 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GTFS_IMPORT_STRICT"),
     )
 
-    # Polling
+    # GTFS-RT polling / worker (Stage 4)
     gtfs_rt_poll_interval_sec: int = 30
     stale_feed_threshold_sec: int = 120
+    gtfs_rt_fetch_timeout_sec: int = 30
+    gtfs_rt_max_retries: int = 3
+    gtfs_rt_backoff_base: float = 2.0
+    gtfs_rt_batch_size: int = 500
+    gtfs_rt_auto_start: bool = False
 
     # Scoring configuration
     on_time_threshold_sec: int = 120
@@ -103,23 +122,35 @@ class Settings(BaseSettings):
     @property
     def gtfs_trip_updates_full_url(self) -> str:
         """Get full trip updates URL with API key."""
-        if self.translink_api_key:
-            return f"{self.gtfs_trip_updates_url}?apikey={self.translink_api_key}"
-        return self.gtfs_trip_updates_url
+        return _with_api_key(self.gtfs_trip_updates_url, self.translink_api_key)
 
     @property
     def gtfs_vehicle_positions_full_url(self) -> str:
         """Get full vehicle positions URL with API key."""
-        if self.translink_api_key:
-            return f"{self.gtfs_vehicle_positions_url}?apikey={self.translink_api_key}"
-        return self.gtfs_vehicle_positions_url
+        return _with_api_key(self.gtfs_vehicle_positions_url, self.translink_api_key)
 
     @property
     def gtfs_service_alerts_full_url(self) -> str:
         """Get full service alerts URL with API key."""
-        if self.translink_api_key:
-            return f"{self.gtfs_service_alerts_url}?apikey={self.translink_api_key}"
-        return self.gtfs_service_alerts_url
+        return _with_api_key(self.gtfs_service_alerts_url, self.translink_api_key)
+
+
+def _with_api_key(url: str, api_key: str) -> str:
+    """Return URL with api key injected unless already present."""
+    if not api_key:
+        return url
+
+    if "${TRANSLINK_API_KEY}" in url:
+        url = url.replace("${TRANSLINK_API_KEY}", api_key)
+
+    parsed = urlparse(url)
+    query_pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    if any(key.lower() == "apikey" for key, _ in query_pairs):
+        return url
+
+    query_pairs.append(("apikey", api_key))
+    new_query = urlencode(query_pairs)
+    return urlunparse(parsed._replace(query=new_query))
 
 
 @lru_cache
