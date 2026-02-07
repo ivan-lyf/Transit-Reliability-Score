@@ -44,15 +44,11 @@ class Settings(BaseSettings):
     )
     gtfs_vehicle_positions_url: str = Field(
         default="https://gtfsapi.translink.ca/v3/gtfsposition",
-        validation_alias=AliasChoices(
-            "VEHICLE_POSITIONS_URL", "GTFS_VEHICLE_POSITIONS_URL"
-        ),
+        validation_alias=AliasChoices("VEHICLE_POSITIONS_URL", "GTFS_VEHICLE_POSITIONS_URL"),
     )
     gtfs_service_alerts_url: str = Field(
         default="https://gtfsapi.translink.ca/v3/gtfsalerts",
-        validation_alias=AliasChoices(
-            "SERVICE_ALERTS_URL", "GTFS_SERVICE_ALERTS_URL"
-        ),
+        validation_alias=AliasChoices("SERVICE_ALERTS_URL", "GTFS_SERVICE_ALERTS_URL"),
     )
     gtfs_static_url: str = Field(
         default="https://gtfs-static.translink.ca",
@@ -79,6 +75,12 @@ class Settings(BaseSettings):
     gtfs_rt_backoff_base: float = 2.0
     gtfs_rt_batch_size: int = 500
     gtfs_rt_auto_start: bool = False
+
+    # Stage 5: Matching engine
+    match_window_minutes: int = 90
+    match_max_candidates: int = 5
+    match_batch_size: int = 1000
+    match_strict_mode: bool = False
 
     # Scoring configuration
     on_time_threshold_sec: int = 120
