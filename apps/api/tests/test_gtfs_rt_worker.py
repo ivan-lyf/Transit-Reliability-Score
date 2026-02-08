@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,6 +14,8 @@ from transit_api.services.gtfs_rt.worker import (
     GtfsRtWorker,
     reset_worker,
 )
+
+from .fixtures.gtfs_rt_fixture import build_trip_update_feed
 
 
 @pytest.fixture(autouse=True)
@@ -100,12 +101,18 @@ class TestGtfsRtWorker:
 
     @pytest.mark.asyncio
     async def test_run_once_calls_all_feeds(self) -> None:
-        worker, mocks = _make_worker_with_mocks()
+        worker, _mocks = _make_worker_with_mocks()
 
         # Mock the _ingest_feed method
-        worker._ingest_feed = AsyncMock(return_value={
-            "status": "ok", "entity_count": 10, "rows_written": 10, "stale": False, "error": None
-        })
+        worker._ingest_feed = AsyncMock(
+            return_value={
+                "status": "ok",
+                "entity_count": 10,
+                "rows_written": 10,
+                "stale": False,
+                "error": None,
+            }
+        )
 
         report = await worker.run_once()
 
@@ -123,9 +130,15 @@ class TestGtfsRtWorker:
     @pytest.mark.asyncio
     async def test_run_once_increments_poll_count(self) -> None:
         worker, _ = _make_worker_with_mocks()
-        worker._ingest_feed = AsyncMock(return_value={
-            "status": "ok", "entity_count": 0, "rows_written": 0, "stale": False, "error": None
-        })
+        worker._ingest_feed = AsyncMock(
+            return_value={
+                "status": "ok",
+                "entity_count": 0,
+                "rows_written": 0,
+                "stale": False,
+                "error": None,
+            }
+        )
 
         await worker.run_once()
         assert worker.poll_count == 1
@@ -136,9 +149,15 @@ class TestGtfsRtWorker:
     @pytest.mark.asyncio
     async def test_run_once_report_structure(self) -> None:
         worker, _ = _make_worker_with_mocks()
-        worker._ingest_feed = AsyncMock(return_value={
-            "status": "ok", "entity_count": 5, "rows_written": 5, "stale": False, "error": None
-        })
+        worker._ingest_feed = AsyncMock(
+            return_value={
+                "status": "ok",
+                "entity_count": 5,
+                "rows_written": 5,
+                "stale": False,
+                "error": None,
+            }
+        )
 
         report = await worker.run_once()
 
@@ -157,12 +176,25 @@ class TestGtfsRtWorker:
         worker, _ = _make_worker_with_mocks()
 
         call_count = 0
-        async def mock_ingest(feed_type, url, poll_id):
+
+        async def mock_ingest(feed_type, _url, _poll_id):
             nonlocal call_count
             call_count += 1
             if feed_type == FEED_TRIP_UPDATES:
-                return {"status": "error", "entity_count": 0, "rows_written": 0, "stale": False, "error": "fail"}
-            return {"status": "ok", "entity_count": 5, "rows_written": 5, "stale": False, "error": None}
+                return {
+                    "status": "error",
+                    "entity_count": 0,
+                    "rows_written": 0,
+                    "stale": False,
+                    "error": "fail",
+                }
+            return {
+                "status": "ok",
+                "entity_count": 5,
+                "rows_written": 5,
+                "stale": False,
+                "error": None,
+            }
 
         worker._ingest_feed = AsyncMock(side_effect=mock_ingest)
 
@@ -183,9 +215,6 @@ class TestStaleDetection:
         worker, _ = _make_worker_with_mocks()
         worker._stale_threshold = 120
 
-        from fixtures.gtfs_rt_fixture import build_trip_update_feed
-        import time
-
         # Feed with old timestamp (5 min ago)
         old_ts = int(time.time()) - 300
         data = build_trip_update_feed(feed_timestamp=old_ts)
@@ -194,13 +223,16 @@ class TestStaleDetection:
         mock_session.execute = AsyncMock(return_value=MagicMock(rowcount=0))
         mock_session.commit = AsyncMock()
 
-        with patch.object(worker._fetcher, "fetch", AsyncMock(return_value=(data, "abc"))), \
-             patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx:
-
+        with (
+            patch.object(worker._fetcher, "fetch", AsyncMock(return_value=(data, "abc"))),
+            patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx,
+        ):
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await worker._ingest_feed(FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1")
+            result = await worker._ingest_feed(
+                FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1"
+            )
 
         assert result["stale"] is True
 
@@ -208,9 +240,6 @@ class TestStaleDetection:
     async def test_fresh_feed_not_stale(self) -> None:
         worker, _ = _make_worker_with_mocks()
         worker._stale_threshold = 120
-
-        from fixtures.gtfs_rt_fixture import build_trip_update_feed
-        import time
 
         # Feed with recent timestamp
         fresh_ts = int(time.time()) - 10
@@ -220,13 +249,16 @@ class TestStaleDetection:
         mock_session.execute = AsyncMock(return_value=MagicMock(rowcount=2))
         mock_session.commit = AsyncMock()
 
-        with patch.object(worker._fetcher, "fetch", AsyncMock(return_value=(data, "abc"))), \
-             patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx:
-
+        with (
+            patch.object(worker._fetcher, "fetch", AsyncMock(return_value=(data, "abc"))),
+            patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx,
+        ):
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await worker._ingest_feed(FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1")
+            result = await worker._ingest_feed(
+                FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1"
+            )
 
         assert result["stale"] is False
 
@@ -240,16 +272,21 @@ class TestWorkerResilience:
 
         worker, _ = _make_worker_with_mocks()
 
-        with patch.object(
-            worker._fetcher, "fetch", AsyncMock(side_effect=FeedFetchError("timeout"))
-        ), patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx:
+        with (
+            patch.object(
+                worker._fetcher, "fetch", AsyncMock(side_effect=FeedFetchError("timeout"))
+            ),
+            patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx,
+        ):
             mock_session = AsyncMock()
             mock_session.execute = AsyncMock()
             mock_session.commit = AsyncMock()
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await worker._ingest_feed(FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1")
+            result = await worker._ingest_feed(
+                FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1"
+            )
 
         assert result["status"] == "error"
         assert "timeout" in result["error"]
@@ -260,18 +297,20 @@ class TestWorkerResilience:
 
         worker, _ = _make_worker_with_mocks()
 
-        with patch.object(
-            worker._fetcher, "fetch", AsyncMock(return_value=(b"data", "hash"))
-        ), patch.object(
-            worker._decoder, "decode", side_effect=DecodeError_("bad data")
-        ), patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx:
+        with (
+            patch.object(worker._fetcher, "fetch", AsyncMock(return_value=(b"data", "hash"))),
+            patch.object(worker._decoder, "decode", side_effect=DecodeError_("bad data")),
+            patch("transit_api.services.gtfs_rt.worker.get_session_context") as mock_ctx,
+        ):
             mock_session = AsyncMock()
             mock_session.execute = AsyncMock()
             mock_session.commit = AsyncMock()
             mock_ctx.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
-            result = await worker._ingest_feed(FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1")
+            result = await worker._ingest_feed(
+                FEED_TRIP_UPDATES, "https://example.com/tu", "poll-1"
+            )
 
         assert result["status"] == "error"
         assert "bad data" in result["error"]

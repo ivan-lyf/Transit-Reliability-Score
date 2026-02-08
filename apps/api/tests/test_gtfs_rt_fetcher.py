@@ -7,7 +7,7 @@ import pytest
 
 from transit_api.services.gtfs_rt.fetcher import FeedFetchError, GtfsRtFetcher
 
-from fixtures.gtfs_rt_fixture import build_trip_update_feed
+from .fixtures.gtfs_rt_fixture import build_trip_update_feed
 
 
 class TestGtfsRtFetcher:
@@ -122,7 +122,7 @@ class TestGtfsRtFetcher:
             instance.__aexit__ = AsyncMock(return_value=False)
             mock_client.return_value = instance
 
-            data, feed_hash = await fetcher.fetch(
+            data, _feed_hash = await fetcher.fetch(
                 "https://example.com/feed", "trip_updates", "poll-1"
             )
 

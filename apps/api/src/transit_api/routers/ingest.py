@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import inspect
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -46,7 +47,7 @@ class WorkerStatusResponse(BaseModel):
 
     running: bool
     poll_count: int
-    last_poll_at: str = ""
+    last_poll_at: Optional[str] = None
     poll_interval_sec: int
 
 
@@ -81,10 +82,14 @@ async def get_last_ingest() -> dict[str, Any]:
             from sqlalchemy import text
 
             result = await session.execute(
-                text("SELECT feed_type, last_success_at, last_attempt_at, status, "
-                     "error_message, entity_count, feed_hash FROM rt_ingest_meta")
+                text(
+                    "SELECT feed_type, last_success_at, last_attempt_at, status, "
+                    "error_message, entity_count, feed_hash FROM rt_ingest_meta"
+                )
             )
             rows = result.fetchall()
+            if inspect.isawaitable(rows):
+                rows = await rows
 
             for row in rows:
                 last_success = row[1]
@@ -93,16 +98,18 @@ async def get_last_ingest() -> dict[str, Any]:
                     age_sec = (now - last_success).total_seconds()
                     is_fresh = age_sec <= stale_threshold
 
-                feeds.append({
-                    "feed_type": row[0],
-                    "status": row[3],
-                    "last_success_at": row[1].isoformat() if row[1] else "",
-                    "last_attempt_at": row[2].isoformat() if row[2] else "",
-                    "error_message": row[4] or "",
-                    "entity_count": row[5] or 0,
-                    "feed_hash": row[6] or "",
-                    "is_fresh": is_fresh,
-                })
+                feeds.append(
+                    {
+                        "feed_type": row[0],
+                        "status": row[3],
+                        "last_success_at": row[1].isoformat() if row[1] else "",
+                        "last_attempt_at": row[2].isoformat() if row[2] else "",
+                        "error_message": row[4] or "",
+                        "entity_count": row[5] or 0,
+                        "feed_hash": row[6] or "",
+                        "is_fresh": is_fresh,
+                    }
+                )
     except Exception as exc:
         logger.warning("Could not read ingest meta (table may not exist)", error=str(exc))
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from contextlib import suppress
 from datetime import datetime, timezone
 from typing import Any
 
@@ -91,10 +92,8 @@ class GtfsRtWorker:
         self._running = False
         if self._task and not self._task.done():
             self._task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         self._task = None
         logger.info("GTFS-RT worker stopped")
 
@@ -152,9 +151,7 @@ class GtfsRtWorker:
             except asyncio.CancelledError:
                 break
 
-    async def _ingest_feed(
-        self, feed_type: str, url: str, poll_id: str
-    ) -> dict[str, Any]:
+    async def _ingest_feed(self, feed_type: str, url: str, poll_id: str) -> dict[str, Any]:
         """Ingest a single GTFS-RT feed: fetch, decode, normalize, write.
 
         Isolated per feed - failure in one doesn't affect others.
@@ -180,7 +177,9 @@ class GtfsRtWorker:
             result["entity_count"] = entity_count
 
             if feed_ts:
-                age_sec = (datetime.now(timezone.utc) - datetime.fromtimestamp(feed_ts, tz=timezone.utc)).total_seconds()
+                age_sec = (
+                    datetime.now(timezone.utc) - datetime.fromtimestamp(feed_ts, tz=timezone.utc)
+                ).total_seconds()
                 if age_sec > self._stale_threshold:
                     logger.warning(
                         "Stale GTFS-RT feed detected",
@@ -196,9 +195,7 @@ class GtfsRtWorker:
 
             # Write
             async with get_session_context() as session:
-                rows_written = await self._write_feed(
-                    session, feed_type, rows, poll_id
-                )
+                rows_written = await self._write_feed(session, feed_type, rows, poll_id)
                 result["rows_written"] = rows_written
 
                 # Update ingest meta
@@ -253,9 +250,7 @@ class GtfsRtWorker:
 
         return result
 
-    def _normalize_feed(
-        self, feed_type: str, feed: Any
-    ) -> list[dict[str, Any]]:
+    def _normalize_feed(self, feed_type: str, feed: Any) -> list[dict[str, Any]]:
         """Route to the correct normalizer based on feed type."""
         if feed_type == FEED_TRIP_UPDATES:
             return self._normalizer.normalize_trip_updates(feed)

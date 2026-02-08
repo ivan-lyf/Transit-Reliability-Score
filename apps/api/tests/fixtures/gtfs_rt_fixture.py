@@ -27,7 +27,7 @@ def build_trip_update_feed(
     """
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.header.gtfs_realtime_version = "2.0"
-    feed.header.timestamp = feed_timestamp or int(time.time())
+    feed.header.timestamp = feed_timestamp if feed_timestamp is not None else int(time.time())
 
     entity = feed.entity.add()
     entity.id = f"tu_{trip_id}"
@@ -67,7 +67,7 @@ def build_vehicle_position_feed(
     """Build a serialized FeedMessage with a VehiclePosition entity."""
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.header.gtfs_realtime_version = "2.0"
-    feed.header.timestamp = feed_timestamp or int(time.time())
+    feed.header.timestamp = feed_timestamp if feed_timestamp is not None else int(time.time())
 
     entity = feed.entity.add()
     entity.id = f"vp_{vehicle_id}"
@@ -100,7 +100,7 @@ def build_alert_feed(
     """Build a serialized FeedMessage with an Alert entity."""
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.header.gtfs_realtime_version = "2.0"
-    feed.header.timestamp = feed_timestamp or int(time.time())
+    feed.header.timestamp = feed_timestamp if feed_timestamp is not None else int(time.time())
 
     entity = feed.entity.add()
     entity.id = alert_id
@@ -116,11 +116,11 @@ def build_alert_feed(
     ds.text = description
     ds.language = "en"
 
-    if active_start or active_end:
+    if active_start is not None or active_end is not None:
         period = alert.active_period.add()
-        if active_start:
+        if active_start is not None:
             period.start = active_start
-        if active_end:
+        if active_end is not None:
             period.end = active_end
 
     ie = alert.informed_entity.add()
@@ -135,17 +135,15 @@ def build_empty_feed(feed_timestamp: int | None = None) -> bytes:
     """Build an empty FeedMessage with no entities."""
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.header.gtfs_realtime_version = "2.0"
-    feed.header.timestamp = feed_timestamp or int(time.time())
+    feed.header.timestamp = feed_timestamp if feed_timestamp is not None else int(time.time())
     return feed.SerializeToString()
 
 
-def build_multi_entity_trip_update_feed(
-    count: int = 5, feed_timestamp: int | None = None
-) -> bytes:
+def build_multi_entity_trip_update_feed(count: int = 5, feed_timestamp: int | None = None) -> bytes:
     """Build a FeedMessage with multiple TripUpdate entities."""
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.header.gtfs_realtime_version = "2.0"
-    feed.header.timestamp = feed_timestamp or int(time.time())
+    feed.header.timestamp = feed_timestamp if feed_timestamp is not None else int(time.time())
 
     for i in range(count):
         entity = feed.entity.add()

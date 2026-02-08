@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 
 import httpx
 
@@ -63,7 +64,9 @@ class GtfsRtFetcher:
                     follow_redirects=True,
                 ) as client:
                     response = await client.get(url)
-                    response.raise_for_status()
+                    raise_result = response.raise_for_status()
+                    if inspect.isawaitable(raise_result):
+                        await raise_result
                     data = response.content
 
                 if not data:

@@ -30,18 +30,30 @@ class TestGtfsRtWriter:
 
         rows = [
             {
-                "trip_id": "T1", "route_id": "R1", "stop_id": "S1",
-                "stop_sequence": 1, "arrival_delay": 60, "arrival_time": None,
-                "departure_delay": 65, "departure_time": None,
+                "trip_id": "T1",
+                "route_id": "R1",
+                "stop_id": "S1",
+                "stop_sequence": 1,
+                "arrival_delay": 60,
+                "arrival_time": None,
+                "departure_delay": 65,
+                "departure_time": None,
                 "schedule_relationship": "SCHEDULED",
-                "feed_timestamp": now, "recorded_at": now,
+                "feed_timestamp": now,
+                "recorded_at": now,
             },
             {
-                "trip_id": "T1", "route_id": "R1", "stop_id": "S2",
-                "stop_sequence": 2, "arrival_delay": 120, "arrival_time": None,
-                "departure_delay": 125, "departure_time": None,
+                "trip_id": "T1",
+                "route_id": "R1",
+                "stop_id": "S2",
+                "stop_sequence": 2,
+                "arrival_delay": 120,
+                "arrival_time": None,
+                "departure_delay": 125,
+                "departure_time": None,
                 "schedule_relationship": "SCHEDULED",
-                "feed_timestamp": now, "recorded_at": now,
+                "feed_timestamp": now,
+                "recorded_at": now,
             },
         ]
 
@@ -58,11 +70,17 @@ class TestGtfsRtWriter:
 
         rows = [
             {
-                "vehicle_id": "V1", "trip_id": "T1", "route_id": "R1",
-                "latitude": 49.28, "longitude": -123.12,
-                "bearing": 90.0, "speed": 10.0,
-                "current_stop_sequence": 3, "current_status": "STOPPED_AT",
-                "feed_timestamp": now, "recorded_at": now,
+                "vehicle_id": "V1",
+                "trip_id": "T1",
+                "route_id": "R1",
+                "latitude": 49.28,
+                "longitude": -123.12,
+                "bearing": 90.0,
+                "speed": 10.0,
+                "current_stop_sequence": 3,
+                "current_status": "STOPPED_AT",
+                "feed_timestamp": now,
+                "recorded_at": now,
             },
         ]
 
@@ -77,13 +95,18 @@ class TestGtfsRtWriter:
 
         rows = [
             {
-                "alert_id": "A1", "cause": "TECHNICAL_PROBLEM",
+                "alert_id": "A1",
+                "cause": "TECHNICAL_PROBLEM",
                 "effect": "SIGNIFICANT_DELAYS",
-                "header_text": "Delays", "description_text": "Details",
-                "active_period_start": 1700000000, "active_period_end": 1700003600,
-                "informed_route_id": "R99", "informed_stop_id": "",
+                "header_text": "Delays",
+                "description_text": "Details",
+                "active_period_start": 1700000000,
+                "active_period_end": 1700003600,
+                "informed_route_id": "R99",
+                "informed_stop_id": "",
                 "informed_trip_id": "",
-                "feed_timestamp": now, "recorded_at": now,
+                "feed_timestamp": now,
+                "recorded_at": now,
             },
         ]
 
@@ -107,16 +130,22 @@ class TestGtfsRtWriter:
 
         rows = [
             {
-                "trip_id": f"T{i}", "route_id": "R1", "stop_id": f"S{i}",
-                "stop_sequence": 1, "arrival_delay": 0, "arrival_time": None,
-                "departure_delay": 0, "departure_time": None,
+                "trip_id": f"T{i}",
+                "route_id": "R1",
+                "stop_id": f"S{i}",
+                "stop_sequence": 1,
+                "arrival_delay": 0,
+                "arrival_time": None,
+                "departure_delay": 0,
+                "departure_time": None,
                 "schedule_relationship": "SCHEDULED",
-                "feed_timestamp": now, "recorded_at": now,
+                "feed_timestamp": now,
+                "recorded_at": now,
             }
             for i in range(5)
         ]
 
-        inserted = await writer.write_trip_updates(session, rows, "poll-1")
+        await writer.write_trip_updates(session, rows, "poll-1")
         # 3 batches: [2, 2, 1] -> rowcount=2 each call
         assert session.execute.call_count == 3
         assert session.commit.call_count == 3
@@ -131,11 +160,17 @@ class TestGtfsRtWriter:
 
         rows = [
             {
-                "trip_id": "T1", "route_id": "R1", "stop_id": "S1",
-                "stop_sequence": 1, "arrival_delay": 0, "arrival_time": None,
-                "departure_delay": 0, "departure_time": None,
+                "trip_id": "T1",
+                "route_id": "R1",
+                "stop_id": "S1",
+                "stop_sequence": 1,
+                "arrival_delay": 0,
+                "arrival_time": None,
+                "departure_delay": 0,
+                "departure_time": None,
                 "schedule_relationship": "SCHEDULED",
-                "feed_timestamp": now, "recorded_at": now,
+                "feed_timestamp": now,
+                "recorded_at": now,
             },
         ]
 

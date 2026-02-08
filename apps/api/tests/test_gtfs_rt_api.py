@@ -107,13 +107,15 @@ class TestWorkerControlEndpoints:
         with patch("transit_api.routers.ingest.get_worker") as mock_get:
             mock_worker = AsyncMock()
             mock_worker.start = AsyncMock()
-            mock_worker.get_status = AsyncMock(return_value={
-                "running": True,
-                "poll_count": 0,
-                "last_poll_at": None,
-                "poll_interval_sec": 30,
-                "stale_threshold_sec": 120,
-            })
+            mock_worker.get_status = AsyncMock(
+                return_value={
+                    "running": True,
+                    "poll_count": 0,
+                    "last_poll_at": None,
+                    "poll_interval_sec": 30,
+                    "stale_threshold_sec": 120,
+                }
+            )
             mock_get.return_value = mock_worker
 
             response = await client.post("/admin/ingest/gtfs-rt/start")
@@ -127,13 +129,15 @@ class TestWorkerControlEndpoints:
         with patch("transit_api.routers.ingest.get_worker") as mock_get:
             mock_worker = AsyncMock()
             mock_worker.stop = AsyncMock()
-            mock_worker.get_status = AsyncMock(return_value={
-                "running": False,
-                "poll_count": 5,
-                "last_poll_at": "2026-02-06T12:00:00+00:00",
-                "poll_interval_sec": 30,
-                "stale_threshold_sec": 120,
-            })
+            mock_worker.get_status = AsyncMock(
+                return_value={
+                    "running": False,
+                    "poll_count": 5,
+                    "last_poll_at": "2026-02-06T12:00:00+00:00",
+                    "poll_interval_sec": 30,
+                    "stale_threshold_sec": 120,
+                }
+            )
             mock_get.return_value = mock_worker
 
             response = await client.post("/admin/ingest/gtfs-rt/stop")
@@ -146,17 +150,19 @@ class TestWorkerControlEndpoints:
     async def test_run_once(self, client: AsyncClient) -> None:
         with patch("transit_api.routers.ingest.get_worker") as mock_get:
             mock_worker = AsyncMock()
-            mock_worker.run_once = AsyncMock(return_value={
-                "poll_id": "abc12345",
-                "poll_count": 1,
-                "started_at": "2026-02-06T12:00:00+00:00",
-                "ended_at": "2026-02-06T12:00:02+00:00",
-                "feeds": {
-                    "trip_updates": {"status": "ok", "entity_count": 10, "rows_written": 10},
-                    "vehicle_positions": {"status": "ok", "entity_count": 5, "rows_written": 5},
-                    "service_alerts": {"status": "ok", "entity_count": 2, "rows_written": 2},
-                },
-            })
+            mock_worker.run_once = AsyncMock(
+                return_value={
+                    "poll_id": "abc12345",
+                    "poll_count": 1,
+                    "started_at": "2026-02-06T12:00:00+00:00",
+                    "ended_at": "2026-02-06T12:00:02+00:00",
+                    "feeds": {
+                        "trip_updates": {"status": "ok", "entity_count": 10, "rows_written": 10},
+                        "vehicle_positions": {"status": "ok", "entity_count": 5, "rows_written": 5},
+                        "service_alerts": {"status": "ok", "entity_count": 2, "rows_written": 2},
+                    },
+                }
+            )
             mock_get.return_value = mock_worker
 
             response = await client.post("/admin/ingest/gtfs-rt/run-once")
