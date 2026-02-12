@@ -22,7 +22,7 @@ from transit_api.services.gtfs_rt.worker import (
     reset_worker,
 )
 
-from fixtures.gtfs_rt_fixture import (
+from .fixtures.gtfs_rt_fixture import (
     build_alert_feed,
     build_trip_update_feed,
     build_vehicle_position_feed,

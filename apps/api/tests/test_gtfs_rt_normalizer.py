@@ -7,7 +7,7 @@ from google.transit import gtfs_realtime_pb2
 
 from transit_api.services.gtfs_rt.normalizer import GtfsRtNormalizer
 
-from fixtures.gtfs_rt_fixture import (
+from .fixtures.gtfs_rt_fixture import (
     build_alert_feed,
     build_empty_feed,
     build_multi_entity_trip_update_feed,

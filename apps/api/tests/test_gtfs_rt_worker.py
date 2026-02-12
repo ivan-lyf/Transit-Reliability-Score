@@ -183,7 +183,7 @@ class TestStaleDetection:
         worker, _ = _make_worker_with_mocks()
         worker._stale_threshold = 120
 
-        from fixtures.gtfs_rt_fixture import build_trip_update_feed
+        from .fixtures.gtfs_rt_fixture import build_trip_update_feed
         import time
 
         # Feed with old timestamp (5 min ago)
@@ -209,7 +209,7 @@ class TestStaleDetection:
         worker, _ = _make_worker_with_mocks()
         worker._stale_threshold = 120
 
-        from fixtures.gtfs_rt_fixture import build_trip_update_feed
+        from .fixtures.gtfs_rt_fixture import build_trip_update_feed
         import time
 
         # Feed with recent timestamp

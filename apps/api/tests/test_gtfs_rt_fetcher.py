@@ -7,7 +7,7 @@ import pytest
 
 from transit_api.services.gtfs_rt.fetcher import FeedFetchError, GtfsRtFetcher
 
-from fixtures.gtfs_rt_fixture import build_trip_update_feed
+from .fixtures.gtfs_rt_fixture import build_trip_update_feed
 
 
 class TestGtfsRtFetcher:
