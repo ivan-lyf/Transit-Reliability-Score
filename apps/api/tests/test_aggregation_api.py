@@ -1,4 +1,4 @@
-"""Tests for Stage 6 score endpoints and aggregation admin trigger.
+"""Tests for Stage 6/7 score endpoints and aggregation admin trigger.
 
 All tests mock the database session so no live DB is needed.  The mocking
 pattern follows the established convention in test_gtfs_rt_api.py.
@@ -153,7 +153,7 @@ class TestGetScore:
 
 
 # ---------------------------------------------------------------------------
-# GET /scores/nearby-risky
+# GET /scores/nearby-risky  (Stage 7: paginated response)
 # ---------------------------------------------------------------------------
 
 
@@ -161,18 +161,19 @@ class TestNearbyRisky:
     @pytest.mark.asyncio
     async def test_returns_sorted_by_score(self, client: AsyncClient) -> None:
         now = datetime.now(timezone.utc)
+        # Note: rows are returned pre-sorted by SQL; here SA row (score=45) first
         rows = [
             _row(
                 stop_id="SA", stop_name="Stop A", lat=49.2827, lon=-123.1207,
                 route_id="R1", day_type="weekday", hour_bucket="9-12",
                 score=45, on_time_rate=0.6, sample_n=100,
-                distance_km=0.2, updated_at=now,
+                distance_m=200.0, updated_at=now,
             ),
             _row(
                 stop_id="SB", stop_name="Stop B", lat=49.283, lon=-123.121,
                 route_id="R2", day_type="weekday", hour_bucket="9-12",
                 score=72, on_time_rate=0.8, sample_n=80,
-                distance_km=0.4, updated_at=now,
+                distance_m=400.0, updated_at=now,
             ),
         ]
         mock_result = MagicMock()
@@ -195,10 +196,13 @@ class TestNearbyRisky:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 2
+        assert "items" in data
+        assert "limit" in data
+        assert "count" in data
+        assert data["count"] == 2
         # First entry should have lowest score (45 < 72)
-        assert data[0]["score"] == 45
-        assert data[0]["stop_id"] == "SA"
+        assert data["items"][0]["score"] == 45
+        assert data["items"][0]["stop_id"] == "SA"
 
     @pytest.mark.asyncio
     async def test_radius_too_large_returns_422(self, client: AsyncClient) -> None:
@@ -222,11 +226,16 @@ class TestNearbyRisky:
         with patch("transit_api.routers.scores.get_session_context", return_value=_ctx()):
             response = await client.get(
                 "/scores/nearby-risky",
-                params={"lat": 49.28, "lon": -123.12},
+                params={
+                    "lat": 49.28, "lon": -123.12,
+                    "day_type": "weekday", "hour_bucket": "9-12",
+                },
             )
 
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["items"] == []
+        assert data["count"] == 0
 
     @pytest.mark.asyncio
     async def test_invalid_lat_rejected(self, client: AsyncClient) -> None:
@@ -236,15 +245,50 @@ class TestNearbyRisky:
         )
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_distance_m_field_present(self, client: AsyncClient) -> None:
+        """Verify response items include distance_m (in metres)."""
+        now = datetime.now(timezone.utc)
+        rows = [
+            _row(
+                stop_id="SC", stop_name="Stop C", lat=49.28, lon=-123.12,
+                route_id="R1", day_type="weekday", hour_bucket="9-12",
+                score=60, on_time_rate=0.7, sample_n=50,
+                distance_m=150.5, updated_at=now,
+            ),
+        ]
+        mock_result = MagicMock()
+        mock_result.fetchall.return_value = rows
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        @asynccontextmanager
+        async def _ctx():
+            yield mock_session
+
+        with patch("transit_api.routers.scores.get_session_context", return_value=_ctx()):
+            response = await client.get(
+                "/scores/nearby-risky",
+                params={
+                    "lat": 49.28, "lon": -123.12,
+                    "day_type": "weekday", "hour_bucket": "9-12",
+                },
+            )
+
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        assert "distance_m" in item
+        assert item["distance_m"] == 150.5
+
 
 # ---------------------------------------------------------------------------
-# GET /scores/trend
+# GET /scores/trend  (Stage 7: envelope response)
 # ---------------------------------------------------------------------------
 
 
 class TestTrend:
     @pytest.mark.asyncio
-    async def test_returns_trend_points(self, client: AsyncClient) -> None:
+    async def test_returns_trend_envelope(self, client: AsyncClient) -> None:
         rows = [
             _row(
                 service_date=date(2026, 2, 10),
@@ -274,13 +318,18 @@ class TestTrend:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 2
-        assert data[0]["service_date"] == "2026-02-10"
-        assert "score" in data[0]
-        assert "sample_n" in data[0]
-        assert "on_time_rate" in data[0]
+        # Envelope fields
+        assert data["stop_id"] == "S1"
+        assert data["route_id"] == "R1"
+        assert data["days"] == 7
+        assert "series" in data
+        assert len(data["series"]) == 2
+        assert data["series"][0]["service_date"] == "2026-02-10"
+        assert "score" in data["series"][0]
+        assert "sample_n" in data["series"][0]
+        assert "on_time_rate" in data["series"][0]
         # scores must be in [0, 100]
-        for point in data:
+        for point in data["series"]:
             assert 0 <= point["score"] <= 100
 
     @pytest.mark.asyncio
@@ -301,13 +350,17 @@ class TestTrend:
             )
 
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["stop_id"] == "S1"
+        assert data["route_id"] == "R1"
+        assert data["series"] == []
 
     @pytest.mark.asyncio
     async def test_days_param_validated(self, client: AsyncClient) -> None:
+        # days must be 1–30
         response = await client.get(
             "/scores/trend",
-            params={"stop_id": "S1", "route_id": "R1", "days": 999},
+            params={"stop_id": "S1", "route_id": "R1", "days": 31},
         )
         assert response.status_code == 422
 
@@ -337,7 +390,7 @@ class TestTrend:
                 "/scores/trend", params={"stop_id": "S1", "route_id": "R1"}
             )
 
-        assert r1.json()[0]["score"] == r2.json()[0]["score"]
+        assert r1.json()["series"][0]["score"] == r2.json()["series"][0]["score"]
 
 
 # ---------------------------------------------------------------------------
