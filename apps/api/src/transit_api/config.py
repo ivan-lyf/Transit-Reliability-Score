@@ -90,6 +90,14 @@ class Settings(BaseSettings):
     weight_p95_component: float = 0.25
     weight_p50_component: float = 0.15
 
+    # Stage 6: Aggregation
+    agg_lookback_days: int = 14
+    min_samples: int = 20
+    agg_batch_size: int = 1000
+    # IANA timezone for hour-bucket assignment (scheduled_ts is stored as UTC).
+    # Use the service area's local timezone so 6-9 AM buckets match rider experience.
+    service_timezone: str = "America/Vancouver"
+
     # API limits
     default_nearby_radius_km: float = 0.5
     max_nearby_radius_km: float = 5.0

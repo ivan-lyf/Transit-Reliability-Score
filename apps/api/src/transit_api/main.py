@@ -23,6 +23,7 @@ from transit_api.logging import (
 )
 from transit_api.routers.admin import router as admin_router
 from transit_api.routers.ingest import router as ingest_router
+from transit_api.routers.scores import router as scores_router
 from transit_api.services.gtfs_rt.worker import get_worker, reset_worker
 
 logger = get_logger(__name__)
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(admin_router)
     app.include_router(ingest_router)
+    app.include_router(scores_router)
 
     # Health endpoint
     @app.get("/health", tags=["meta"])
