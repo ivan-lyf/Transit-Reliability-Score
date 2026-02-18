@@ -108,7 +108,9 @@ def create_app() -> FastAPI:
         worker_status = await worker.get_status()
         rt_healthy = worker_status["running"] or not settings.gtfs_rt_auto_start
 
-        status = "unhealthy" if missing_env else "healthy" if (db_healthy and rt_healthy) else "degraded"
+        status = (
+            "unhealthy" if missing_env else "healthy" if (db_healthy and rt_healthy) else "degraded"
+        )
 
         issues: list[str] = []
         if missing_env:

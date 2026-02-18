@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import text
 
 from transit_api.logging import get_logger
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import CursorResult
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
@@ -85,25 +86,19 @@ class GtfsRtWriter:
         self, session: AsyncSession, rows: list[dict[str, Any]], poll_id: str
     ) -> int:
         """Batch insert trip updates with ON CONFLICT DO NOTHING."""
-        return await self._batch_insert(
-            session, "rt_trip_updates", rows, poll_id
-        )
+        return await self._batch_insert(session, "rt_trip_updates", rows, poll_id)
 
     async def write_vehicle_positions(
         self, session: AsyncSession, rows: list[dict[str, Any]], poll_id: str
     ) -> int:
         """Batch insert vehicle positions with ON CONFLICT DO NOTHING."""
-        return await self._batch_insert(
-            session, "rt_vehicle_positions", rows, poll_id
-        )
+        return await self._batch_insert(session, "rt_vehicle_positions", rows, poll_id)
 
     async def write_alerts(
         self, session: AsyncSession, rows: list[dict[str, Any]], poll_id: str
     ) -> int:
         """Batch insert alerts with ON CONFLICT DO NOTHING."""
-        return await self._batch_insert(
-            session, "rt_alerts", rows, poll_id
-        )
+        return await self._batch_insert(session, "rt_alerts", rows, poll_id)
 
     async def update_ingest_meta(
         self,
@@ -175,8 +170,7 @@ class GtfsRtWriter:
             batch = rows[batch_start : batch_start + self.batch_size]
 
             values_sql = ", ".join(
-                "(" + ", ".join(f":{col}_{i}" for col in columns) + ")"
-                for i in range(len(batch))
+                "(" + ", ".join(f":{col}_{i}" for col in columns) + ")" for i in range(len(batch))
             )
             params: dict[str, Any] = {}
             for i, row in enumerate(batch):
@@ -190,7 +184,7 @@ class GtfsRtWriter:
             """)
 
             try:
-                result = await session.execute(stmt, params)
+                result = cast("CursorResult[Any]", await session.execute(stmt, params))
                 inserted = result.rowcount if result.rowcount else 0
                 total_inserted += inserted
                 await session.commit()

@@ -1,7 +1,6 @@
 """Integration tests for GTFS-RT pipeline (mock feeds, real normalization)."""
 
 import time
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,7 +15,7 @@ from transit_api.services.gtfs_rt.worker import (
     reset_worker,
 )
 
-from fixtures.gtfs_rt_fixture import (
+from .fixtures.gtfs_rt_fixture import (
     build_alert_feed,
     build_multi_entity_trip_update_feed,
     build_trip_update_feed,
@@ -37,7 +36,8 @@ class TestFullPipelineIntegration:
         """Full pipeline: raw protobuf -> decoded -> normalized rows."""
         ts = int(time.time())
         data = build_trip_update_feed(
-            trip_id="T100", route_id="R10",
+            trip_id="T100",
+            route_id="R10",
             stop_updates=[
                 {"stop_id": "SA", "stop_sequence": 1, "arrival_delay": 30, "departure_delay": 35},
                 {"stop_id": "SB", "stop_sequence": 2, "arrival_delay": 90, "departure_delay": 95},
@@ -63,8 +63,13 @@ class TestFullPipelineIntegration:
     async def test_vehicle_position_pipeline(self) -> None:
         ts = int(time.time())
         data = build_vehicle_position_feed(
-            vehicle_id="V99", trip_id="T50", route_id="R5",
-            lat=49.25, lon=-123.10, bearing=270.0, speed=15.0,
+            vehicle_id="V99",
+            trip_id="T50",
+            route_id="R5",
+            lat=49.25,
+            lon=-123.10,
+            bearing=270.0,
+            speed=15.0,
             feed_timestamp=ts,
         )
 
@@ -81,7 +86,8 @@ class TestFullPipelineIntegration:
         ts = int(time.time())
         data = build_alert_feed(
             alert_id="ALERT99",
-            cause=6, effect=1,
+            cause=6,
+            effect=1,
             header="Bus Rerouted",
             description="Route 99 detoured due to accident",
             route_id="R99",
@@ -130,7 +136,7 @@ class TestDuplicateHandling:
 
         # Same content (minus recorded_at which uses now())
         assert len(rows1) == len(rows2)
-        for r1, r2 in zip(rows1, rows2):
+        for r1, r2 in zip(rows1, rows2):  # noqa: B905
             assert r1["trip_id"] == r2["trip_id"]
             assert r1["stop_id"] == r2["stop_id"]
             assert r1["feed_timestamp"] == r2["feed_timestamp"]
@@ -168,7 +174,7 @@ class TestWorkerPollCycleIntegration:
 
             worker = GtfsRtWorker()
 
-        async def mock_fetch(url, feed_type, poll_id):
+        async def mock_fetch(_url, feed_type, _poll_id):
             data = feed_data_map[feed_type]
             return data, "fakehash"
 
@@ -221,7 +227,7 @@ class TestWorkerPollCycleIntegration:
 
             worker = GtfsRtWorker()
 
-        async def mock_fetch(url, feed_type, poll_id):
+        async def mock_fetch(_url, feed_type, _poll_id):
             data = feed_data_map[feed_type]
             return data, "fakehash"
 

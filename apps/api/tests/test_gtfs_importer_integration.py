@@ -3,18 +3,26 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from transit_api.models import Base
 from transit_api.services.gtfs_static.importer import GtfsImporter
 from transit_api.services.gtfs_static.reader import MissingRequiredFileError
 
 from .fixtures.gtfs_fixture import STOPS_TXT_MODIFIED, build_gtfs_zip
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 RUN_INTEGRATION = os.getenv("RUN_INTEGRATION_TESTS") == "1"
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -88,7 +96,9 @@ class TestGtfsImporterIntegration:
         assert await _count(session, "trips") == 3
         assert await _count(session, "stop_times") == 8
 
-    async def test_reimport_same_zip_idempotent(self, session: AsyncSession, tmp_path: Path) -> None:
+    async def test_reimport_same_zip_idempotent(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
         zip_file = tmp_path / "gtfs.zip"
         zip_file.write_bytes(build_gtfs_zip())
 
@@ -113,7 +123,9 @@ class TestGtfsImporterIntegration:
         assert await _count(session, "stops") == 3
         assert await _count(session, "stop_times") == 8
 
-    async def test_modified_fixture_updates_and_inserts(self, session: AsyncSession, tmp_path: Path) -> None:
+    async def test_modified_fixture_updates_and_inserts(
+        self, session: AsyncSession, tmp_path: Path
+    ) -> None:
         zip_file = tmp_path / "gtfs.zip"
         zip_file.write_bytes(build_gtfs_zip())
 

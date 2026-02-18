@@ -7,7 +7,7 @@ from google.transit import gtfs_realtime_pb2
 
 from transit_api.services.gtfs_rt.normalizer import GtfsRtNormalizer
 
-from fixtures.gtfs_rt_fixture import (
+from .fixtures.gtfs_rt_fixture import (
     build_alert_feed,
     build_empty_feed,
     build_multi_entity_trip_update_feed,
@@ -28,7 +28,9 @@ class TestNormalizeTripUpdates:
     def test_basic_trip_update(self) -> None:
         ts = int(time.time())
         data = build_trip_update_feed(
-            trip_id="T1", route_id="R1", feed_timestamp=ts,
+            trip_id="T1",
+            route_id="R1",
+            feed_timestamp=ts,
             stop_updates=[
                 {"stop_id": "S1", "stop_sequence": 1, "arrival_delay": 60, "departure_delay": 70},
             ],
@@ -115,8 +117,13 @@ class TestNormalizeVehiclePositions:
 
     def test_basic_vehicle_position(self) -> None:
         data = build_vehicle_position_feed(
-            vehicle_id="V1", trip_id="T1", route_id="R1",
-            lat=49.28, lon=-123.12, bearing=180.0, speed=10.0,
+            vehicle_id="V1",
+            trip_id="T1",
+            route_id="R1",
+            lat=49.28,
+            lon=-123.12,
+            bearing=180.0,
+            speed=10.0,
         )
         feed = _decode(data)
         rows = GtfsRtNormalizer.normalize_vehicle_positions(feed)
@@ -170,9 +177,14 @@ class TestNormalizeAlerts:
     def test_basic_alert(self) -> None:
         ts = int(time.time())
         data = build_alert_feed(
-            alert_id="A1", cause=3, effect=3,
-            header="Test Alert", description="Details here",
-            route_id="R99", active_start=ts - 3600, active_end=ts + 3600,
+            alert_id="A1",
+            cause=3,
+            effect=3,
+            header="Test Alert",
+            description="Details here",
+            route_id="R99",
+            active_start=ts - 3600,
+            active_end=ts + 3600,
             feed_timestamp=ts,
         )
         feed = _decode(data)

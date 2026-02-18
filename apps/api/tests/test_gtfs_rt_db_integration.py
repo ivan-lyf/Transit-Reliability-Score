@@ -10,7 +10,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from transit_api.models import Base
 from transit_api.services.gtfs_rt.fetcher import FeedFetchError
@@ -22,7 +27,7 @@ from transit_api.services.gtfs_rt.worker import (
     reset_worker,
 )
 
-from fixtures.gtfs_rt_fixture import (
+from .fixtures.gtfs_rt_fixture import (
     build_alert_feed,
     build_trip_update_feed,
     build_vehicle_position_feed,
@@ -138,7 +143,7 @@ class TestGtfsRtDbIntegration:
 
         worker = _make_worker()
 
-        async def mock_fetch(url: str, feed_type: str, poll_id: str):
+        async def mock_fetch(_url: str, feed_type: str, _poll_id: str):
             if feed_type == FEED_TRIP_UPDATES:
                 return tu_data, "hash-tu"
             if feed_type == FEED_VEHICLE_POSITIONS:
@@ -210,7 +215,7 @@ class TestGtfsRtDbIntegration:
 
         worker = _make_worker()
 
-        async def mock_fetch(url: str, feed_type: str, poll_id: str):
+        async def mock_fetch(_url: str, feed_type: str, _poll_id: str):
             if feed_type == FEED_TRIP_UPDATES:
                 raise FeedFetchError("fetch-failed")
             if feed_type == FEED_VEHICLE_POSITIONS:
@@ -234,9 +239,7 @@ class TestGtfsRtDbIntegration:
         assert await _count(session, "rt_alerts") == 1
 
         result = await session.execute(
-            text(
-                "SELECT status, error_message FROM rt_ingest_meta WHERE feed_type = :feed_type"
-            ),
+            text("SELECT status, error_message FROM rt_ingest_meta WHERE feed_type = :feed_type"),
             {"feed_type": FEED_TRIP_UPDATES},
         )
         status, error_message = result.one()

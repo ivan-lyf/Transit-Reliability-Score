@@ -143,9 +143,7 @@ class TestAdminImportEndpoint:
         self, api_client: AsyncClient, tmp_path: Path
     ) -> None:
         bad_stops = (
-            "stop_id,stop_name,stop_lat,stop_lon\n"
-            "50001,Test,abc,def\n"
-            "50002,Good,49.0,-123.0\n"
+            "stop_id,stop_name,stop_lat,stop_lon\n50001,Test,abc,def\n50002,Good,49.0,-123.0\n"
         )
         zip_bytes = build_gtfs_zip(stops=bad_stops)
         zip_file = tmp_path / "bad_gtfs.zip"

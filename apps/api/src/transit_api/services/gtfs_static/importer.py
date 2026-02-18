@@ -336,8 +336,7 @@ class GtfsImporter:
         for batch_start in range(0, len(data), self.batch_size):
             batch = data[batch_start : batch_start + self.batch_size]
             values_sql = ", ".join(
-                "(" + ", ".join(f":{col}_{i}" for col in columns) + ")"
-                for i in range(len(batch))
+                "(" + ", ".join(f":{col}_{i}" for col in columns) + ")" for i in range(len(batch))
             )
             params: dict[str, Any] = {}
             for i, row in enumerate(batch):

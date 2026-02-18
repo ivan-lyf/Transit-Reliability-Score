@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
-
-from google.transit import gtfs_realtime_pb2
+from typing import TYPE_CHECKING, Any
 
 from transit_api.logging import get_logger
+
+if TYPE_CHECKING:
+    from google.transit import gtfs_realtime_pb2  # type: ignore[import-untyped]
 
 logger = get_logger(__name__)
 
@@ -64,7 +65,7 @@ def _ts_to_dt(unix_ts: int) -> datetime:
 def _get_translation(translated_string: Any) -> str:
     """Extract first translation text from a TranslatedString, or empty string."""
     if translated_string and translated_string.translation:
-        return translated_string.translation[0].text
+        return str(translated_string.translation[0].text)
     return ""
 
 
@@ -97,9 +98,7 @@ class GtfsRtNormalizer:
             tu = entity.trip_update
             trip_id = tu.trip.trip_id if tu.trip.trip_id else ""
             route_id = tu.trip.route_id if tu.trip.route_id else ""
-            sched_rel = SCHEDULE_RELATIONSHIP.get(
-                tu.trip.schedule_relationship, "SCHEDULED"
-            )
+            sched_rel = SCHEDULE_RELATIONSHIP.get(tu.trip.schedule_relationship, "SCHEDULED")
 
             if not trip_id:
                 continue
@@ -115,9 +114,13 @@ class GtfsRtNormalizer:
                     "stop_id": stop_id,
                     "stop_sequence": stu.stop_sequence if stu.stop_sequence else 0,
                     "arrival_delay": stu.arrival.delay if stu.HasField("arrival") else None,
-                    "arrival_time": stu.arrival.time if stu.HasField("arrival") and stu.arrival.time else None,
+                    "arrival_time": stu.arrival.time
+                    if stu.HasField("arrival") and stu.arrival.time
+                    else None,
                     "departure_delay": stu.departure.delay if stu.HasField("departure") else None,
-                    "departure_time": stu.departure.time if stu.HasField("departure") and stu.departure.time else None,
+                    "departure_time": stu.departure.time
+                    if stu.HasField("departure") and stu.departure.time
+                    else None,
                     "schedule_relationship": sched_rel,
                     "feed_timestamp": feed_dt,
                     "recorded_at": now,
@@ -167,24 +170,28 @@ class GtfsRtNormalizer:
             if lat == 0.0 and lon == 0.0:
                 continue
 
-            bearing = vp.position.bearing if vp.HasField("position") and vp.position.bearing else None
+            bearing = (
+                vp.position.bearing if vp.HasField("position") and vp.position.bearing else None
+            )
             speed = vp.position.speed if vp.HasField("position") and vp.position.speed else None
             stop_seq = vp.current_stop_sequence if vp.current_stop_sequence else None
             status = VEHICLE_STOP_STATUS.get(vp.current_status, "")
 
-            rows.append({
-                "vehicle_id": vehicle_id,
-                "trip_id": trip_id,
-                "route_id": route_id,
-                "latitude": lat,
-                "longitude": lon,
-                "bearing": bearing,
-                "speed": speed,
-                "current_stop_sequence": stop_seq,
-                "current_status": status,
-                "feed_timestamp": feed_dt,
-                "recorded_at": now,
-            })
+            rows.append(
+                {
+                    "vehicle_id": vehicle_id,
+                    "trip_id": trip_id,
+                    "route_id": route_id,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "bearing": bearing,
+                    "speed": speed,
+                    "current_stop_sequence": stop_seq,
+                    "current_status": status,
+                    "feed_timestamp": feed_dt,
+                    "recorded_at": now,
+                }
+            )
 
         return rows
 
@@ -223,7 +230,9 @@ class GtfsRtNormalizer:
             period_start = None
             period_end = None
             if alert.active_period:
-                period_start = alert.active_period[0].start if alert.active_period[0].start else None
+                period_start = (
+                    alert.active_period[0].start if alert.active_period[0].start else None
+                )
                 period_end = alert.active_period[0].end if alert.active_period[0].end else None
 
             # Expand per informed entity (or single row if none)
@@ -239,19 +248,21 @@ class GtfsRtNormalizer:
                     if ie.HasField("trip"):
                         trip_id = ie.trip.trip_id if ie.trip.trip_id else ""
 
-                rows.append({
-                    "alert_id": alert_id,
-                    "cause": cause,
-                    "effect": effect,
-                    "header_text": header,
-                    "description_text": description,
-                    "active_period_start": period_start,
-                    "active_period_end": period_end,
-                    "informed_route_id": route_id,
-                    "informed_stop_id": stop_id,
-                    "informed_trip_id": trip_id,
-                    "feed_timestamp": feed_dt,
-                    "recorded_at": now,
-                })
+                rows.append(
+                    {
+                        "alert_id": alert_id,
+                        "cause": cause,
+                        "effect": effect,
+                        "header_text": header,
+                        "description_text": description,
+                        "active_period_start": period_start,
+                        "active_period_end": period_end,
+                        "informed_route_id": route_id,
+                        "informed_stop_id": stop_id,
+                        "informed_trip_id": trip_id,
+                        "feed_timestamp": feed_dt,
+                        "recorded_at": now,
+                    }
+                )
 
         return rows

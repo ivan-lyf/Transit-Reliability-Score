@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from google.protobuf.message import DecodeError
-from google.transit import gtfs_realtime_pb2
+from google.transit import gtfs_realtime_pb2  # type: ignore[import-untyped]
 
 from transit_api.logging import get_logger
 
