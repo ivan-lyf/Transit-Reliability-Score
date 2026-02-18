@@ -94,7 +94,7 @@ class TestGtfsRtWorker:
 
         assert status["running"] is False
         assert status["poll_count"] == 0
-        assert status["last_poll_at"] is None
+        assert status["last_poll_at"] == ""
         assert status["poll_interval_sec"] == 30
         assert status["stale_threshold_sec"] == 120
 

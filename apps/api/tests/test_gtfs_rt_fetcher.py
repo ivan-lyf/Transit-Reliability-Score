@@ -1,6 +1,6 @@
 """Tests for GTFS-RT feed fetcher."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -60,7 +60,7 @@ class TestGtfsRtFetcher:
 
         mock_response = AsyncMock()
         mock_response.status_code = 500
-        mock_response.raise_for_status = AsyncMock(
+        mock_response.raise_for_status = MagicMock(
             side_effect=httpx.HTTPStatusError(
                 "Server Error",
                 request=httpx.Request("GET", "https://example.com/feed"),
@@ -103,7 +103,7 @@ class TestGtfsRtFetcher:
         fetcher = GtfsRtFetcher(timeout_sec=5, max_retries=3, backoff_base=0.01)
 
         fail_response = AsyncMock()
-        fail_response.raise_for_status = AsyncMock(
+        fail_response.raise_for_status = MagicMock(
             side_effect=httpx.HTTPStatusError(
                 "Server Error",
                 request=httpx.Request("GET", "https://example.com/feed"),

@@ -134,7 +134,7 @@ class GtfsRtWorker:
         return {
             "running": self._running,
             "poll_count": self._poll_count,
-            "last_poll_at": self._last_poll_at.isoformat() if self._last_poll_at else None,
+            "last_poll_at": self._last_poll_at.isoformat() if self._last_poll_at else "",
             "poll_interval_sec": self._poll_interval,
             "stale_threshold_sec": self._stale_threshold,
         }

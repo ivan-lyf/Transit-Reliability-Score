@@ -1,6 +1,6 @@
 """Tests for GTFS-RT API endpoints."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -35,7 +35,7 @@ class TestLastIngestEndpoint:
 
         with patch("transit_api.routers.ingest.get_session_context") as mock_ctx:
             mock_session = AsyncMock()
-            mock_result = AsyncMock()
+            mock_result = MagicMock()
             mock_result.fetchall.return_value = [
                 ("trip_updates", now, now, "ok", "", 42, "abc123"),
                 ("vehicle_positions", now, now, "ok", "", 15, "def456"),
@@ -62,7 +62,7 @@ class TestLastIngestEndpoint:
 
         with patch("transit_api.routers.ingest.get_session_context") as mock_ctx:
             mock_session = AsyncMock()
-            mock_result = AsyncMock()
+            mock_result = MagicMock()
             mock_result.fetchall.return_value = [
                 ("trip_updates", old, old, "ok", "", 10, "abc"),
             ]
@@ -110,7 +110,7 @@ class TestWorkerControlEndpoints:
             mock_worker.get_status = AsyncMock(return_value={
                 "running": True,
                 "poll_count": 0,
-                "last_poll_at": None,
+                "last_poll_at": "",
                 "poll_interval_sec": 30,
                 "stale_threshold_sec": 120,
             })

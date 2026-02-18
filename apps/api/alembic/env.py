@@ -8,6 +8,10 @@ from logging.config import fileConfig
 from typing import TYPE_CHECKING
 
 from alembic import context
+from dotenv import load_dotenv
+
+# Load .env so DATABASE_URL is available to os.environ when running alembic CLI
+load_dotenv()
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
