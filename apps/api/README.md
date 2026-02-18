@@ -184,3 +184,78 @@ pytest tests/test_aggregation_integration.py -v
 
 > **Warning:** Integration tests drop and recreate all tables. Use a
 > dedicated test database, not production.
+
+---
+
+## Public API (Stage 7)
+
+### Endpoint reference
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/stops/nearby` | Stops within radius, ordered by distance |
+| `GET` | `/stops/{stop_id}/routes` | Routes serving a stop |
+| `GET` | `/scores` | Score card for one bucket |
+| `GET` | `/scores/nearby-risky` | Riskiest stops near a location (worst route per stop) |
+| `GET` | `/scores/trend` | Daily score series for a stop+route |
+| `GET` | `/meta/last-ingest` | Last GTFS-RT ingest status per feed |
+| `GET` | `/meta/last-agg` | Last aggregation run summary |
+
+### Day-type and hour-bucket conventions
+
+`day_type` values stored in `score_agg`:
+
+| `day_type` | Days of week |
+|------------|--------------|
+| `weekday`  | Monday–Friday |
+| `saturday` | Saturday |
+| `sunday`   | Sunday |
+
+`hour_bucket` values: `6-9`, `9-12`, `12-15`, `15-18`, `18-21`
+(local hours in `SERVICE_TIMEZONE`, default `America/Vancouver`).
+
+Arrivals outside these windows are excluded from aggregation.
+`/scores/nearby-risky` and `/scores/trend` accept optional `day_type` /
+`hour_bucket` parameters; if omitted they default to the **current local
+time** in the service timezone.
+
+### Staleness
+
+`/meta/last-ingest` marks a feed as `is_fresh=false` when
+`now − last_success_at > STALE_FEED_THRESHOLD_SEC` (default 120 s).
+
+### Example requests
+
+```bash
+# Stops within 500 m of a point
+curl "http://localhost:8000/stops/nearby?lat=49.2827&lon=-123.1207&radius_km=0.5"
+
+# Routes serving a stop
+curl "http://localhost:8000/stops/55846/routes"
+
+# Score card for a specific bucket
+curl "http://localhost:8000/scores?stop_id=55846&route_id=099&day_type=weekday&hour_bucket=9-12"
+
+# Riskiest stops nearby (explicit bucket)
+curl "http://localhost:8000/scores/nearby-risky?lat=49.28&lon=-123.12&day_type=weekday&hour_bucket=9-12"
+
+# Riskiest stops nearby (smart defaults — bucket from current local time)
+curl "http://localhost:8000/scores/nearby-risky?lat=49.28&lon=-123.12"
+
+# 7-day daily trend
+curl "http://localhost:8000/scores/trend?stop_id=55846&route_id=099&days=7"
+
+# Ingest health
+curl "http://localhost:8000/meta/last-ingest"
+```
+
+### Running Stage 7 integration tests
+
+```bash
+export RUN_INTEGRATION_TESTS=1
+export DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/testdb
+pytest tests/test_public_api_integration.py -v
+```
+
+> **Warning:** Integration tests drop and recreate all tables. Use a
+> dedicated test database, not production.

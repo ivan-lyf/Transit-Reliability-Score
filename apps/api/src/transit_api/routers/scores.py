@@ -1,10 +1,10 @@
-"""Stage 6: reliability score read endpoints and aggregation admin trigger.
+"""Stage 6/7: reliability score read endpoints and aggregation admin trigger.
 
 Endpoints
 ---------
 GET  /scores                  – score card for a specific bucket
-GET  /scores/nearby-risky     – risky stops near a lat/lon
-GET  /scores/trend            – 7-day daily score series
+GET  /scores/nearby-risky     – risky stops near a lat/lon  (paginated)
+GET  /scores/trend            – daily score series for stop+route
 GET  /meta/last-agg           – last aggregation run summary
 POST /admin/agg/run           – trigger an aggregation run
 """
@@ -30,11 +30,67 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["scores"])
 
 # ---------------------------------------------------------------------------
-# Response schemas
+# Shared type aliases
 # ---------------------------------------------------------------------------
 
 DayType = Literal["weekday", "saturday", "sunday"]
 HourBucket = Literal["6-9", "9-12", "12-15", "15-18", "18-21"]
+
+
+# ---------------------------------------------------------------------------
+# Smart defaults: infer day_type / hour_bucket from current local time
+# ---------------------------------------------------------------------------
+
+try:
+    from zoneinfo import ZoneInfo as _ZoneInfo
+
+    def _current_day_type(tz: str) -> DayType:
+        now = datetime.now(_ZoneInfo(tz))
+        dow = now.weekday()  # 0=Mon … 6=Sun
+        if dow < 5:
+            return "weekday"
+        return "saturday" if dow == 5 else "sunday"
+
+    def _current_hour_bucket(tz: str) -> HourBucket | None:
+        hour = datetime.now(_ZoneInfo(tz)).hour
+        if 6 <= hour <= 8:
+            return "6-9"
+        if 9 <= hour <= 11:
+            return "9-12"
+        if 12 <= hour <= 14:
+            return "12-15"
+        if 15 <= hour <= 17:
+            return "15-18"
+        if 18 <= hour <= 20:
+            return "18-21"
+        return None
+
+except Exception:
+    # Fallback when system timezone data is unavailable (e.g. Windows dev without tzdata)
+    def _current_day_type(tz: str) -> DayType:  # type: ignore[misc]
+        dow = datetime.now(timezone.utc).weekday()
+        if dow < 5:
+            return "weekday"
+        return "saturday" if dow == 5 else "sunday"
+
+    def _current_hour_bucket(tz: str) -> HourBucket | None:  # type: ignore[misc]
+        hour = datetime.now(timezone.utc).hour
+        if 6 <= hour <= 8:
+            return "6-9"
+        if 9 <= hour <= 11:
+            return "9-12"
+        if 12 <= hour <= 14:
+            return "12-15"
+        if 15 <= hour <= 17:
+            return "15-18"
+        if 18 <= hour <= 20:
+            return "18-21"
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Response schemas
+# ---------------------------------------------------------------------------
 
 
 class ScoreCard(BaseModel):
@@ -64,8 +120,14 @@ class RiskyStop(BaseModel):
     score: int
     on_time_rate: float
     sample_n: int
-    distance_km: float
+    distance_m: float
     updated_at: datetime
+
+
+class NearbyRiskyResponse(BaseModel):
+    items: list[RiskyStop]
+    limit: int
+    count: int
 
 
 class TrendPoint(BaseModel):
@@ -75,6 +137,13 @@ class TrendPoint(BaseModel):
     on_time_rate: float
     p50_delay_sec: int
     p95_delay_sec: int
+
+
+class TrendResponse(BaseModel):
+    stop_id: str
+    route_id: str
+    days: int
+    series: list[TrendPoint]
 
 
 class LastAggResponse(BaseModel):
@@ -147,8 +216,7 @@ async def get_score(
     if row is None:
         raise HTTPException(
             status_code=404,
-            detail=f"No score found for stop={stop_id} route={route_id} "
-                   f"day_type={day_type} hour_bucket={hour_bucket}",
+            detail="No score available for this bucket yet.",
         )
 
     return {
@@ -172,35 +240,49 @@ async def get_score(
 
 @router.get(
     "/scores/nearby-risky",
-    response_model=list[RiskyStop],
+    response_model=NearbyRiskyResponse,
     summary="Find risky stops near a location",
+    description=(
+        "Return stops near a location ordered by lowest reliability score "
+        "(riskiest first), then by distance.  Each stop shows its single "
+        "worst-scoring route for the requested bucket. "
+        "If day_type/hour_bucket are omitted they default to the current "
+        "local time in the service timezone (America/Vancouver)."
+    ),
 )
 async def get_nearby_risky(
     lat: Annotated[float, Query(ge=-90, le=90)],
     lon: Annotated[float, Query(ge=-180, le=180)],
-    radius_km: Annotated[
-        float,
-        Query(gt=0),
-    ] = None,
-    day_type: DayType = "weekday",
-    hour_bucket: HourBucket = "6-9",
-    limit: Annotated[int, Query(ge=1, le=100)] = None,
-) -> list[dict[str, Any]]:
+    radius_km: Annotated[float, Query(ge=0.05, le=10.0)] = 1.0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    day_type: Optional[DayType] = None,
+    hour_bucket: Optional[HourBucket] = None,
+    min_samples: Annotated[
+        int,
+        Query(ge=0, description="Minimum sample_n to include (filters low-data buckets)"),
+    ] = 20,
+) -> dict[str, Any]:
     """Return nearby stops ordered by lowest reliability score (riskiest first).
 
     Uses a bounding-box pre-filter on ix_stops_lat_lon to avoid a full table
     scan, then applies the exact Haversine formula to filter by radius.
+
+    Worst-route per stop
+    --------------------
+    For stops served by multiple routes, only the route with the lowest score
+    is returned.  This keeps the payload focused on the riskiest connection
+    and avoids duplicating stops in the response.
     """
     settings = get_settings()
-    if radius_km is None:
-        radius_km = settings.default_nearby_radius_km
-    if radius_km > settings.max_nearby_radius_km:
-        raise HTTPException(
-            status_code=422,
-            detail=f"radius_km must be <= {settings.max_nearby_radius_km}",
-        )
-    if limit is None:
-        limit = settings.risky_stops_default_limit
+
+    # Smart defaults based on current local time
+    if day_type is None:
+        day_type = _current_day_type(settings.service_timezone)
+    if hour_bucket is None:
+        hour_bucket = _current_hour_bucket(settings.service_timezone)
+        if hour_bucket is None:
+            # Outside all five service windows — return empty results
+            return {"items": [], "limit": limit, "count": 0}
 
     lat_min, lat_max, lon_min, lon_max = haversine_bounding_box(lat, lon, radius_km)
 
@@ -221,24 +303,38 @@ async def get_nearby_risky(
                         sa.sample_n,
                         sa.updated_at,
                         (
-                            6371.0 * 2.0 * ASIN(SQRT(
+                            6371000.0 * 2.0 * ASIN(SQRT(
                                 POWER(SIN(RADIANS((s.lat::float - :lat) / 2.0)), 2)
                                 + COS(RADIANS(:lat)) * COS(RADIANS(s.lat::float))
                                 * POWER(SIN(RADIANS((s.lon::float - :lon) / 2.0)), 2)
                             ))
-                        ) AS distance_km
+                        ) AS distance_m
                     FROM stops s
                     JOIN score_agg sa ON s.stop_id = sa.stop_id
                     WHERE
                         sa.day_type    = :day_type
                         AND sa.hour_bucket = :hour_bucket
+                        AND sa.sample_n   >= :min_samples
                         AND s.lat BETWEEN :lat_min AND :lat_max
                         AND s.lon BETWEEN :lon_min AND :lon_max
+                ),
+                -- Keep only the worst route per stop (lowest score, tie-break by route_id)
+                ranked AS (
+                    SELECT *,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY stop_id
+                               ORDER BY score ASC, route_id ASC
+                           ) AS rn
+                    FROM candidates
+                    WHERE distance_m <= :radius_m
                 )
-                SELECT *
-                FROM candidates
-                WHERE distance_km <= :radius_km
-                ORDER BY score ASC, distance_km ASC
+                SELECT
+                    stop_id, stop_name, lat, lon, route_id,
+                    day_type, hour_bucket, score, on_time_rate,
+                    sample_n, distance_m, updated_at
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY score ASC, distance_m ASC
                 LIMIT :lim
             """),
             {
@@ -246,17 +342,18 @@ async def get_nearby_risky(
                 "lon": lon,
                 "day_type": day_type,
                 "hour_bucket": hour_bucket,
+                "min_samples": min_samples,
                 "lat_min": lat_min,
                 "lat_max": lat_max,
                 "lon_min": lon_min,
                 "lon_max": lon_max,
-                "radius_km": radius_km,
+                "radius_m": radius_km * 1000.0,
                 "lim": limit,
             },
         )
         rows = result.fetchall()
 
-    return [
+    items = [
         {
             "stop_id": r.stop_id,
             "stop_name": r.stop_name,
@@ -268,11 +365,13 @@ async def get_nearby_risky(
             "score": int(r.score),
             "on_time_rate": float(r.on_time_rate),
             "sample_n": int(r.sample_n),
-            "distance_km": round(float(r.distance_km), 3),
+            "distance_m": round(float(r.distance_m), 1),
             "updated_at": r.updated_at,
         }
         for r in rows
     ]
+
+    return {"items": items, "limit": limit, "count": len(items)}
 
 
 # ---------------------------------------------------------------------------
@@ -281,14 +380,19 @@ async def get_nearby_risky(
 
 @router.get(
     "/scores/trend",
-    response_model=list[TrendPoint],
-    summary="Get 7-day daily reliability trend",
+    response_model=TrendResponse,
+    summary="Get daily reliability trend for a stop+route",
+    description=(
+        "Compute per-day reliability metrics from matched_arrivals for the "
+        "last N days.  Only days with at least one matched observation appear "
+        "in the series.  Scores are computed on-the-fly from raw observations."
+    ),
 )
 async def get_trend(
     stop_id: str,
     route_id: str,
-    days: Annotated[int, Query(ge=1, le=90)] = None,
-) -> list[dict[str, Any]]:
+    days: Annotated[int, Query(ge=1, le=30)] = None,
+) -> dict[str, Any]:
     """Return daily reliability metrics for the past N days (default 7).
 
     Computes scores on-the-fly from matched_arrivals so the trend reflects
@@ -297,7 +401,7 @@ async def get_trend(
 
     Design rationale (Option A chosen)
     -----------------------------------
-    Computing trend on-the-fly from matched_arrivals (≤90 day window,
+    Computing trend on-the-fly from matched_arrivals (≤30 day window,
     scoped by stop+route) is fast enough at this scale and avoids
     maintaining a separate daily aggregate table.  If query latency
     becomes an issue at production volume, promote to Option B
@@ -336,7 +440,7 @@ async def get_trend(
         )
         rows = result.fetchall()
 
-    return [
+    series = [
         {
             "service_date": r.service_date,
             "score": compute_score(
@@ -356,6 +460,13 @@ async def get_trend(
         }
         for r in rows
     ]
+
+    return {
+        "stop_id": stop_id,
+        "route_id": route_id,
+        "days": days,
+        "series": series,
+    }
 
 
 # ---------------------------------------------------------------------------
