@@ -23,6 +23,7 @@ class TestModelsMetadata:
             "rt_ingest_meta",
             "matched_arrivals",
             "score_agg",
+            "agg_run_log",
             "users",
             "gtfs_import_log",
         }

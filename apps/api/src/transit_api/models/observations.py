@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import (
     CheckConstraint,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -93,3 +95,20 @@ class ScoreAggregate(Base):
         CheckConstraint("on_time_rate >= 0 AND on_time_rate <= 1", name="ck_on_time_rate"),
         CheckConstraint("sample_n >= 0", name="ck_sample_n"),
     )
+
+
+class AggRunLog(Base):
+    """Record of a single aggregation job run (Stage 6)."""
+
+    __tablename__ = "agg_run_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    lookback_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    rows_scanned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    buckets_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="running")
+    error_message: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    __table_args__ = (Index("ix_agg_run_log_started_at", "started_at"),)
