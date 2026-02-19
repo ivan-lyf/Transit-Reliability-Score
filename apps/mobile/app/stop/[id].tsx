@@ -124,6 +124,8 @@ export default function StopDetailScreen(): JSX.Element {
       {/* Score card */}
       {scoreQuery.isLoading ? (
         <LoadingState message="Loading score…" />
+      ) : scoreQuery.error ? (
+        <ErrorState message="Couldn't load score" onRetry={() => void scoreQuery.refetch()} />
       ) : scoreQuery.data ? (
         <>
           <ScoreCard score={scoreQuery.data} />
