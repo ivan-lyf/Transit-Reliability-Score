@@ -1,4 +1,5 @@
 module.exports = {
+  preset: 'jest-expo',
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
@@ -9,9 +10,7 @@ module.exports = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
-  testEnvironment: 'node',
-  transform: {
-    '^.+\\.(ts|tsx)$': ['babel-jest', { presets: ['babel-preset-expo'] }],
-  },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  transformIgnorePatterns: [
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@rnmapbox/.*|@unimodules/.*|unimodules|react-native-svg|victory-native|@shopify/.*)',
+  ],
 };
