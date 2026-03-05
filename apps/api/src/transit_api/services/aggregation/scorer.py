@@ -34,7 +34,7 @@ def compute_score(
 
     Formula
     -------
-    c1 = on_time_rate                                 (0–1)
+    c1 = on_time_rate                                 (0-1)
     c2 = clamp(1 - p95_delay_sec / p95_cap, 0, 1)
     c3 = clamp(1 - |p50_delay_sec| / p50_cap, 0, 1)
     raw = weight_on_time * c1 + weight_p95 * c2 + weight_p50 * c3
@@ -97,7 +97,7 @@ _HOUR_BUCKETS: list[tuple[int, int, str]] = [
 
 
 def assign_hour_bucket(hour: int) -> str | None:
-    """Map an hour-of-day (0–23) to an hour_bucket label.
+    """Map an hour-of-day (0-23) to an hour_bucket label.
 
     Returns None for hours outside the five service windows (before 6 AM or
     after 8 PM), which are excluded from aggregation.

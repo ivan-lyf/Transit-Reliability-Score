@@ -2,16 +2,15 @@
 
 Endpoints
 ---------
-GET  /scores                  – score card for a specific bucket
-GET  /scores/nearby-risky     – risky stops near a lat/lon  (paginated)
-GET  /scores/trend            – daily score series for stop+route
-GET  /meta/last-agg           – last aggregation run summary
-POST /admin/agg/run           – trigger an aggregation run
+GET  /scores                  - score card for a specific bucket
+GET  /scores/nearby-risky     - risky stops near a lat/lon  (paginated)
+GET  /scores/trend            - daily score series for stop+route
+GET  /meta/last-agg           - last aggregation run summary
+POST /admin/agg/run           - trigger an aggregation run
 """
 
 from __future__ import annotations
 
-import math
 from datetime import date, datetime, timezone
 from typing import Annotated, Any, Literal, Optional
 
@@ -67,13 +66,13 @@ try:
 
 except Exception:
     # Fallback when system timezone data is unavailable (e.g. Windows dev without tzdata)
-    def _current_day_type(tz: str) -> DayType:  # type: ignore[misc]
+    def _current_day_type(_tz: str) -> DayType:  # type: ignore[misc]
         dow = datetime.now(timezone.utc).weekday()
         if dow < 5:
             return "weekday"
         return "saturday" if dow == 5 else "sunday"
 
-    def _current_hour_bucket(tz: str) -> HourBucket | None:  # type: ignore[misc]
+    def _current_hour_bucket(_tz: str) -> HourBucket | None:  # type: ignore[misc]
         hour = datetime.now(timezone.utc).hour
         if 6 <= hour <= 8:
             return "6-9"
@@ -104,9 +103,7 @@ class ScoreCard(BaseModel):
     score: int
     sample_n: int
     updated_at: datetime
-    low_confidence: bool = Field(
-        description="True when sample_n < MIN_SAMPLES config value"
-    )
+    low_confidence: bool = Field(description="True when sample_n < MIN_SAMPLES config value")
 
 
 class RiskyStop(BaseModel):
@@ -182,6 +179,7 @@ class AggRunResponse(BaseModel):
 # GET /scores
 # ---------------------------------------------------------------------------
 
+
 @router.get("/scores", response_model=ScoreCard, summary="Get reliability score card")
 async def get_score(
     stop_id: str,
@@ -237,6 +235,7 @@ async def get_score(
 # ---------------------------------------------------------------------------
 # GET /scores/nearby-risky
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/scores/nearby-risky",
@@ -378,6 +377,7 @@ async def get_nearby_risky(
 # GET /scores/trend
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/scores/trend",
     response_model=TrendResponse,
@@ -391,7 +391,7 @@ async def get_nearby_risky(
 async def get_trend(
     stop_id: str,
     route_id: str,
-    days: Annotated[int, Query(ge=1, le=30)] = None,
+    days: Annotated[Optional[int], Query(ge=1, le=30)] = None,
 ) -> dict[str, Any]:
     """Return daily reliability metrics for the past N days (default 7).
 
@@ -473,6 +473,7 @@ async def get_trend(
 # GET /meta/last-agg
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/meta/last-agg",
     response_model=LastAggResponse,
@@ -516,6 +517,7 @@ async def get_last_agg() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # POST /admin/agg/run
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/admin/agg/run",

@@ -59,6 +59,7 @@ export function formatDistance(metres: number): string {
 export function formatUpdatedAt(isoString: string): string {
   try {
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
     return date.toLocaleString('en-CA', {
       timeZone: 'America/Vancouver',
       month: 'short',
@@ -77,6 +78,7 @@ export function formatUpdatedAt(isoString: string): string {
 export function formatServiceDate(dateStr: string): string {
   try {
     const d = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
   } catch {
     return dateStr;

@@ -8,6 +8,7 @@ module.exports = {
       jsx: true,
     },
     project: './tsconfig.json',
+    tsconfigRootDir: __dirname,
   },
   plugins: ['@typescript-eslint', 'react', 'react-hooks'],
   extends: [
@@ -37,5 +38,6 @@ module.exports = {
     'jest.config.js',
     '.eslintrc.js',
     'expo-env.d.ts',
+    'global.d.ts',
   ],
 };

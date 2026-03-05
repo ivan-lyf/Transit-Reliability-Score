@@ -2,8 +2,8 @@
 
 Endpoints
 ---------
-GET /stops/nearby              – paginated stops within a radius
-GET /stops/{stop_id}/routes    – distinct routes serving a stop
+GET /stops/nearby              - paginated stops within a radius
+GET /stops/{stop_id}/routes    - distinct routes serving a stop
 """
 
 from __future__ import annotations
@@ -80,7 +80,7 @@ async def get_nearby_stops(
     ],
     radius_km: Annotated[
         float,
-        Query(ge=0.05, le=10.0, description="Search radius in kilometres (0.05–10)"),
+        Query(ge=0.05, le=10.0, description="Search radius in kilometres (0.05-10)"),
     ] = 0.75,
     limit: Annotated[
         int,

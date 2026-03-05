@@ -56,8 +56,8 @@ describe('ScoreCard', () => {
   });
 
   it('opens the explainer modal on press', () => {
-    const { getByTestId, getByText } = render(<ScoreCard score={MOCK_SCORE} />);
+    const { getByTestId } = render(<ScoreCard score={MOCK_SCORE} />);
     fireEvent.press(getByTestId('score-card'));
-    expect(getByText('Reliability Score')).toBeTruthy();
+    expect(getByTestId('score-explainer-modal')).toBeTruthy();
   });
 });
